@@ -16,11 +16,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests((authorize) -> authorize
+                    .requestMatchers("/login", "/register", "/", "/css/**", "/js/**").permitAll()
                     .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
-                .formLogin(Customizer.withDefaults())
+                .formLogin(form -> form
+                    .loginPage("/login.html")
+                    .loginProcessingUrl("/login")
+                    .permitAll()
+                )
+                .logout(logout -> logout
+                    .logoutSuccessUrl("/")
+                    .permitAll()
+                )
                 .build();
 
     }

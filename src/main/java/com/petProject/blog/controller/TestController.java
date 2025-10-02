@@ -10,13 +10,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.petProject.blog.config.RegistrationUserRequest;
+import com.petProject.blog.config.AuthenticationUserRequest;
 import com.petProject.blog.service.AuthService;
 
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("test/")
+@RequestMapping("/")
 @RequiredArgsConstructor
 public class TestController {
     
@@ -44,9 +44,14 @@ public class TestController {
     public String registration() {
         return "registration";
     }
-    
+
     @PostMapping(value="/registration", produces=APPLICATION_JSON_VALUE)
-    public void registration(@RequestBody RegistrationUserRequest registrationUserRequest) {
+    public void registration(@RequestBody AuthenticationUserRequest registrationUserRequest) {
         authService.register(registrationUserRequest);
+    }
+
+    @GetMapping(value="/login", produces=APPLICATION_JSON_VALUE)
+    public void login(@RequestBody AuthenticationUserRequest authenticationUserRequest) {
+        authService.login(authenticationUserRequest);
     }
 }

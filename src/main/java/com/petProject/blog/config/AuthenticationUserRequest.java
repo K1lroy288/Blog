@@ -5,7 +5,7 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class RegistrationUserRequest {
+public class AuthenticationUserRequest {
     private String name;
     private String password;
 }
