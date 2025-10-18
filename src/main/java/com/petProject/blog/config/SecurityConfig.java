@@ -20,13 +20,6 @@ public class SecurityConfig {
                 .requestMatchers("/", "/blog.html", "/login.html", "register.html", "/api/v1/auth/**").permitAll()
                 .anyRequest().authenticated()
             )
-            /* .formLogin(form -> form
-                .loginPage("/login.html")
-                .loginProcessingUrl("/perform_login")
-                .defaultSuccessUrl("/", true)
-                .failureUrl("/login.html?error")
-                .permitAll()
-            ) */
             .build();
     }
 

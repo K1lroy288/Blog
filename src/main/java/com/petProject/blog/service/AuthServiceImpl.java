@@ -9,7 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.petProject.blog.config.AuthenticationUserRequest;
+import com.petProject.blog.api.AuthenticationUserRequest;
 import com.petProject.blog.model.Role;
 import com.petProject.blog.model.User;
 import com.petProject.blog.repository.UserRepository;

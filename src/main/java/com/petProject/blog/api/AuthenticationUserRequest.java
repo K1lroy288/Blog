@@ -1,4 +1,4 @@
-package com.petProject.blog.config;
+package com.petProject.blog.api;
 
 import lombok.Data;
 

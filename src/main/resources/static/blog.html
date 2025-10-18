@@ -119,8 +119,8 @@
                 div.innerHTML = `
                     <div class="card-body">
                         <h5 class="card-title">${art.title}</h5>
-                        <p class="card-text">${art.content?.substring(0, 150)}${art.content?.length > 150 ? '...' : ''}</p>
-                        <small class="text-muted">Автор: ${art.author?.username || 'Аноним'} | ${date}</small>
+                        <p class="card-text">${art.description?.substring(0, 150)}${art.description?.length > 150 ? '...' : ''}</p>
+                        <small class="text-muted">Автор: ${art.authorName || 'Аноним'} | ${date}</small>
                         <br>
                         <button class="btn btn-sm btn-outline-primary mt-2" onclick="viewArticle(${art.id})">Читать далее</button>
                     </div>

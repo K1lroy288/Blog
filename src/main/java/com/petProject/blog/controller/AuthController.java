@@ -6,16 +6,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.petProject.blog.config.AuthenticationUserRequest;
-import com.petProject.blog.config.LoginResponse;
+import com.petProject.blog.api.AuthenticationUserRequest;
+import com.petProject.blog.api.LoginResponse;
 import com.petProject.blog.model.User;
 import com.petProject.blog.service.AuthService;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -32,17 +35,23 @@ public class AuthController {
     }
 
     @PostMapping(value="/login", produces=APPLICATION_JSON_VALUE)
-    public ResponseEntity<LoginResponse> login(@RequestBody AuthenticationUserRequest authenticationUserRequest) {
+    public ResponseEntity<LoginResponse> login(@RequestBody AuthenticationUserRequest authenticationUserRequest, HttpServletRequest httpRequest) {
         User user = authService.login(authenticationUserRequest);
 
         Authentication auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        LoginResponse loginResponse = new LoginResponse();
-        loginResponse.setId(user.getId());
-        loginResponse.setPassword(user.getPassword());
-        loginResponse.setUsername(user.getUsername());
-        loginResponse.setRoles(user.getRoles());
+        HttpSession session = httpRequest.getSession();
+        session.setAttribute(
+            HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+            SecurityContextHolder.getContext()
+        );
+
+        LoginResponse loginResponse = new LoginResponse()
+            .setId(user.getId())
+            .setPassword(user.getPassword())
+            .setUsername(user.getUsername())
+            .setRoles(user.getRoles());
 
         return ResponseEntity.ok(loginResponse);
     }
