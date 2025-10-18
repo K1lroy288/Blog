@@ -1,18 +1,13 @@
-package com.petProject.blog.config;
-
-import java.util.Collection;
-import java.util.Optional;
+/* package com.petProject.blog.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.petProject.blog.model.User;
-import com.petProject.blog.repository.UserRepository;
+import com.petProject.blog.service.AuthService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,27 +16,20 @@ import lombok.RequiredArgsConstructor;
 public class AuthProvider implements AuthenticationProvider {
 
     @Autowired
-    private final UserRepository userRepository;
-
-    @Autowired
-    private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     @Override
     public Authentication authenticate(Authentication authentication) {
 
         String username = authentication.getName();
         String password = (String) authentication.getCredentials();
-        
-        Optional<User> userOpt = userRepository.findByName(username);
-        if (userOpt.isEmpty()) {
-            return null;
-        }
 
-        User user = userOpt.get();
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            return null;
-        }
-        
+        AuthenticationUserRequest authenticationUserRequest = new AuthenticationUserRequest();
+        authenticationUserRequest.setUsername(username);
+        authenticationUserRequest.setPassword(password);
+
+        User user = authService.login(authenticationUserRequest);
+
         return new UsernamePasswordAuthenticationToken(user, user.getPassword(), user.getAuthorities());
     }
 
@@ -49,4 +37,5 @@ public class AuthProvider implements AuthenticationProvider {
     public boolean supports(Class<?> arg) {
         return true;
     }
-}
+
+} */

@@ -30,22 +30,21 @@ import lombok.experimental.Accessors;
 
 @Data
 @Entity
-@Accessors(chain = true)
-@Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
+@Table(name="users")
+@Accessors(chain = true)
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
-    private Integer id;
+    private Integer Id;
 
-    @Column(unique=true)
     @NotBlank(message="Username is required")
-    @Size(max = 100, message = "Username cannot exceed 100 characters")
-    private String name;
+    @Size(max=100, message="Username cannot exceed 100 characters")
+    private String username;
 
-    @NotBlank(message = "password is required")
+    @NotBlank(message="Password is required")
     private String password;
-    
+
     @ElementCollection(targetClass=Role.class, fetch=FetchType.EAGER)
     @CollectionTable(name="user_role", joinColumns=@JoinColumn(name="user_id"))
     @Enumerated(EnumType.STRING)
@@ -55,12 +54,6 @@ public class User implements UserDetails {
     @Column(name="created_at")
     private LocalDateTime createdAt;
 
-    @NotNull
-    @Override
-    public String getUsername() {
-        return this.name;
-    }
-    
     @NotNull
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

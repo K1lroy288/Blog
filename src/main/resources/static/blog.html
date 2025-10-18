@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Мой Блог</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        body { padding-top: 60px; background-color: #f8f9fa; }
+        .article-card { margin-bottom: 1rem; }
+        .comment { font-size: 0.9em; color: #555; margin: 0.5rem 0; }
+        .hidden { display: none !important; }
+        footer { margin-top: 3rem; text-align: center; color: #6c757d; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<!-- Навбар -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="#" onclick="showHome()">Мой Блог</a>
+        <div class="ms-auto">
+            <span id="user-panel">
+                Добро пожаловать, <strong id="username"></strong>
+                <button class="btn btn-warning btn-sm ms-2" onclick="showCreateArticle()">Новая статья</button>
+                <button class="btn btn-danger btn-sm ms-2" onclick="logout()">Выход</button>
+            </span>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+
+    <!-- Главная: список статей -->
+    <section id="home">
+        <h2>Статьи</h2>
+        <div class="mb-3">
+            <input type="text" id="search-input" class="form-control" placeholder="Поиск..." oninput="searchArticles()"/>
+        </div>
+        <div id="articles-list">
+            <!-- Статьи подгружаются сюда -->
+        </div>
+    </section>
+
+    <!-- Детали статьи -->
+    <section id="article-detail" class="hidden">
+        <button class="btn btn-secondary mb-3" onclick="showHome()">← Назад к списку</button>
+        <h2 id="article-title"></h2>
+        <p><small class="text-muted">Автор: <span id="article-author"></span> | <span id="article-date"></span></small></p>
+        <div id="article-content" class="mb-4"></div>
+
+        <h5>Комментарии</h5>
+        <div id="comments-list"></div>
+
+        <div id="comment-form-container" class="mt-3">
+            <textarea id="comment-text" class="form-control mb-2" rows="2" placeholder="Напишите комментарий..."></textarea>
+            <button class="btn btn-primary btn-sm" onclick="addComment()">Добавить</button>
+        </div>
+    </section>
+
+    <!-- Форма создания статьи -->
+    <section id="create-article-form" class="hidden">
+        <h2>Новая статья</h2>
+        <div class="alert alert-danger hidden" id="create-error"></div>
+        <input type="text" id="article-title-input" class="form-control mb-2" placeholder="Заголовок"/>
+        <textarea id="article-content-input" class="form-control mb-2" rows="5" placeholder="Текст статьи..."></textarea>
+        <button class="btn btn-success" onclick="createArticle()">Опубликовать</button>
+        <button class="btn btn-link" onclick="showHome()">Отмена</button>
+    </section>
+
+</div>
+
+<footer>
+    &copy; 2025 Мой Блог. Все права защищены.
+</footer>
+
+<script>
+    // === Управление экранами ===
+    function showSection(id) {
+        document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+        document.getElementById(id).classList.remove("hidden");
+    }
+
+    const showHome = () => showSection("home");
+    const showCreateArticle = () => showSection("create-article-form");
+
+    // === Данные пользователя ===
+    let userId = localStorage.getItem("userId");
+    let username = localStorage.getItem("username");
+
+    // === Обновление UI авторизации ===
+    function updateAuthUI() {
+        const userPanel = document.getElementById("user-panel");
+        const usernameEl = document.getElementById("username");
+
+        if (userId && username) {
+            userPanel.classList.remove("hidden");
+            usernameEl.textContent = username;
+        } else {
+            // Если нет данных — перенаправляем на login
+            window.location.href = "/login.html";
+        }
+    }
+
+    // === Загрузка всех статей ===
+    async function loadArticles() {
+        try {
+            const res = await fetch("/api/v1/articles");
+            if (!res.ok) throw new Error("Не удалось загрузить статьи");
+            const articles = await res.json();
+
+            const container = document.getElementById("articles-list");
+            container.innerHTML = "";
+
+            articles.forEach(art => {
+                const date = new Date(art.createdAt).toLocaleString("ru-RU");
+                const div = document.createElement("div");
+                div.className = "card article-card";
+                div.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${art.title}</h5>
+                        <p class="card-text">${art.content?.substring(0, 150)}${art.content?.length > 150 ? '...' : ''}</p>
+                        <small class="text-muted">Автор: ${art.author?.username || 'Аноним'} | ${date}</small>
+                        <br>
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="viewArticle(${art.id})">Читать далее</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) {
+            console.error("Ошибка загрузки статей:", e);
+            document.getElementById("articles-list").innerHTML = "<p class='text-danger'>Не удалось загрузить статьи.</p>";
+        }
+    }
+
+    // === Создание статьи ===
+    async function createArticle() {
+        const title = document.getElementById("article-title-input").value.trim();
+        const content = document.getElementById("article-content-input").value.trim();
+
+        if (!title || !content) {
+            document.getElementById("create-error").textContent = "Заполните все поля.";
+            document.getElementById("create-error").classList.remove("hidden");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/v1/articles", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, content })
+            });
+
+            if (res.ok) {
+                showHome();
+                loadArticles();
+                document.getElementById("article-title-input").value = "";
+                document.getElementById("article-content-input").value = "";
+            } else {
+                const errorText = res.status === 403 
+                    ? "Требуется авторизация" 
+                    : "Ошибка публикации";
+                document.getElementById("create-error").textContent = errorText;
+                document.getElementById("create-error").classList.remove("hidden");
+            }
+        } catch (e) {
+            console.error("Ошибка при создании статьи:", e);
+            document.getElementById("create-error").textContent = "Нет связи с сервером";
+            document.getElementById("create-error").classList.remove("hidden");
+        }
+    }
+
+    // === Выход ===
+    async function logout() {
+        try {
+            await fetch("/api/v1/logout", {
+                method: "POST"
+            });
+        } catch (e) {
+            console.warn("Ошибка при вызове logout:", e);
+            // Всё равно выходим
+        } finally {
+            // Очищаем данные
+            localStorage.removeItem("userId");
+            localStorage.removeItem("username");
+            // Редирект на страницу входа
+            window.location.href = "/login.html";
+        }
+    }
+
+    // === Просмотр статьи (заглушка) ===
+    function viewArticle(id) {
+        alert("Просмотр статьи #" + id);
+    }
+
+    // === Поиск (заглушка) ===
+    function searchArticles() {
+        // Можно реализовать позже
+        loadArticles();
+    }
+
+    // === Инициализация ===
+    updateAuthUI();
+    loadArticles();
+</script>
+
+</body>
+</html>
