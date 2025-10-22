@@ -1,6 +1,7 @@
 package com.petProject.blog.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.petProject.blog.api.ArticlesResponse;
+import com.petProject.blog.api.ArticleResponse;
 import com.petProject.blog.api.CreateArticleRequest;
 import com.petProject.blog.repository.ArticleRepository;
 import com.petProject.blog.model.Article;
@@ -30,7 +31,7 @@ public class ArticleServiceImpl implements ArticleService {
     
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+            
         }
         
         Object principal = authentication.getPrincipal();
@@ -49,21 +50,31 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    public List<ArticlesResponse> getArticles() {
+    public List<ArticleResponse> getArticles() {
         return articleRepository.findAll()
             .stream()
-            .map(this::buildArticlesResponse)
-            .collect(Collectors.toList());
+            .map(ArticleResponse::buildArticleResponse)
+            .collect(Collectors.toList())
+            .reversed();
     }
 
     @Override
-    public ArticlesResponse buildArticlesResponse(Article article) {
-        return new ArticlesResponse()
-            .setAuthorName(article.getAuthor().getUsername())
-            .setDescription(article.getContent())
-            .setId(article.getId())
-            .setTitle(article.getTitle())
-            .setCreatedAt(article.getCreatedAt());
+    public ArticleResponse getArticle(Integer articleId) {
+        Optional<Article> articleOpt = articleRepository.findById(articleId);
+        if (articleOpt.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Article with such Id not found");
+        }
+
+        Article article = articleOpt.get();
+        return ArticleResponse.buildArticleResponse(article);
+    }
+
+    @Override
+    public List<ArticleResponse> search(String search) {
+        return articleRepository.findByTitleOrContentContaining(search)
+            .stream()
+            .map(ArticleResponse::buildArticleResponse)
+            .collect(Collectors.toList());
     }
 
 }

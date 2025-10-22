@@ -2,16 +2,16 @@ package com.petProject.blog.service;
 
 import java.util.List;
 
-import com.petProject.blog.api.ArticlesResponse;
+import com.petProject.blog.api.ArticleResponse;
 import com.petProject.blog.api.CreateArticleRequest;
-import com.petProject.blog.model.Article;
 
 public interface ArticleService {
     
     public void createArticle(CreateArticleRequest createArticleRequest);
 
-    public List<ArticlesResponse> getArticles();
+    public List<ArticleResponse> getArticles();
 
-    public ArticlesResponse buildArticlesResponse(Article article);
+    public ArticleResponse getArticle(Integer articleId);
 
+    public List<ArticleResponse> search(String search);
 }

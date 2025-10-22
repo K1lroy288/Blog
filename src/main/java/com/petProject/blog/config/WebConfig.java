@@ -12,4 +12,6 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addRedirectViewController("/", "/login.html");
     }
 
+    
+
 }

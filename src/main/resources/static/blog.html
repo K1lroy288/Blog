@@ -7,10 +7,14 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <style>
         body { padding-top: 60px; background-color: #f8f9fa; }
-        .article-card { margin-bottom: 1rem; }
+        .article-card { margin-bottom: 1rem; transition: transform 0.2s; }
+        .article-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .comment { font-size: 0.9em; color: #555; margin: 0.5rem 0; }
         .hidden { display: none !important; }
         footer { margin-top: 3rem; text-align: center; color: #6c757d; font-size: 0.9em; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 8px; }
+        .loading-spinner { text-align: center; padding: 2rem; }
+        .search-info { font-size: 0.9em; color: #6c757d; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
@@ -18,10 +22,12 @@
 <!-- Навбар -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="#" onclick="showHome()">Мой Блог</a>
+        <a class="navbar-brand" href="#" onclick="goToProfile()">Мой Блог</a>
         <div class="ms-auto">
             <span id="user-panel">
+                <img src="" alt="Аватар" class="user-avatar" id="user-avatar">
                 Добро пожаловать, <strong id="username"></strong>
+                <button class="btn btn-info btn-sm ms-2" onclick="goToProfile()">Профиль</button>
                 <button class="btn btn-warning btn-sm ms-2" onclick="showCreateArticle()">Новая статья</button>
                 <button class="btn btn-danger btn-sm ms-2" onclick="logout()">Выход</button>
             </span>
@@ -33,28 +39,50 @@
 
     <!-- Главная: список статей -->
     <section id="home">
-        <h2>Статьи</h2>
-        <div class="mb-3">
-            <input type="text" id="search-input" class="form-control" placeholder="Поиск..." oninput="searchArticles()"/>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Статьи</h2>
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearSearch()" id="clear-search-btn" style="display: none;">
+                ❌ Очистить поиск
+            </button>
         </div>
+        
+        <!-- Поисковая строка -->
+        <div class="mb-4">
+            <div class="input-group">
+                <input type="text" id="search-input" class="form-control" 
+                       placeholder="Поиск по заголовку или содержанию..." 
+                       oninput="handleSearchInput()"/>
+                <button class="btn btn-outline-secondary" type="button" onclick="performSearch()">
+                    🔍 Поиск
+                </button>
+            </div>
+            <div class="form-text">Введите 2 или более символов для поиска</div>
+        </div>
+
+        <!-- Информация о поиске -->
+        <div id="search-info" class="search-info hidden">
+            <!-- Тут будет информация о результатах поиска -->
+        </div>
+
+        <!-- Индикатор загрузки -->
+        <div id="loading-spinner" class="loading-spinner hidden">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2">Ищем статьи...</p>
+        </div>
+
+        <!-- Список статей -->
         <div id="articles-list">
             <!-- Статьи подгружаются сюда -->
         </div>
-    </section>
 
-    <!-- Детали статьи -->
-    <section id="article-detail" class="hidden">
-        <button class="btn btn-secondary mb-3" onclick="showHome()">← Назад к списку</button>
-        <h2 id="article-title"></h2>
-        <p><small class="text-muted">Автор: <span id="article-author"></span> | <span id="article-date"></span></small></p>
-        <div id="article-content" class="mb-4"></div>
-
-        <h5>Комментарии</h5>
-        <div id="comments-list"></div>
-
-        <div id="comment-form-container" class="mt-3">
-            <textarea id="comment-text" class="form-control mb-2" rows="2" placeholder="Напишите комментарий..."></textarea>
-            <button class="btn btn-primary btn-sm" onclick="addComment()">Добавить</button>
+        <!-- Сообщение "не найдено" -->
+        <div id="no-results" class="hidden">
+            <div class="alert alert-warning text-center">
+                <h5>😔 Статьи не найдены</h5>
+                <p>Попробуйте изменить поисковый запрос или <a href="#" onclick="clearSearch()">показать все статьи</a></p>
+            </div>
         </div>
     </section>
 
@@ -63,7 +91,7 @@
         <h2>Новая статья</h2>
         <div class="alert alert-danger hidden" id="create-error"></div>
         <input type="text" id="article-title-input" class="form-control mb-2" placeholder="Заголовок"/>
-        <textarea id="article-content-input" class="form-control mb-2" rows="5" placeholder="Текст статьи..."></textarea>
+        <textarea id="article-content-input" class="form-control mb-2" rows="10" placeholder="Текст статьи..."></textarea>
         <button class="btn btn-success" onclick="createArticle()">Опубликовать</button>
         <button class="btn btn-link" onclick="showHome()">Отмена</button>
     </section>
@@ -75,6 +103,11 @@
 </footer>
 
 <script>
+    // === Переменные для управления поиском ===
+    let currentSearchQuery = '';
+    let searchTimeout = null;
+    let isSearching = false;
+
     // === Управление экранами ===
     function showSection(id) {
         document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
@@ -87,67 +120,258 @@
     // === Данные пользователя ===
     let userId = localStorage.getItem("userId");
     let username = localStorage.getItem("username");
+    let userEmail = localStorage.getItem("userEmail");
+    let token = localStorage.getItem("token");
 
     // === Обновление UI авторизации ===
     function updateAuthUI() {
         const userPanel = document.getElementById("user-panel");
         const usernameEl = document.getElementById("username");
+        const userAvatar = document.getElementById("user-avatar");
 
         if (userId && username) {
             userPanel.classList.remove("hidden");
             usernameEl.textContent = username;
+            loadUserAvatar();
         } else {
-            // Если нет данных — перенаправляем на login
             window.location.href = "/login.html";
         }
     }
 
-    // === Загрузка всех статей ===
+    // === Загрузка аватара пользователя ===
+    async function loadUserAvatar() {
+        try {
+            const res = await fetch(`/api/v1/users/${userId}/avatar`);
+            if (res.ok) {
+                const blob = await res.blob();
+                const avatarUrl = URL.createObjectURL(blob);
+                document.getElementById('user-avatar').src = avatarUrl;
+            }
+        } catch (e) {
+            console.error("Ошибка загрузки аватара:", e);
+        }
+    }
+
+    // === Улучшенный поиск статей ===
+    function handleSearchInput() {
+        const searchInput = document.getElementById("search-input");
+        const query = searchInput.value.trim();
+        
+        // Очищаем предыдущий таймер
+        clearTimeout(searchTimeout);
+        
+        // Если запрос слишком короткий и был предыдущий поиск - очищаем
+        if (query.length < 2 && currentSearchQuery) {
+            clearSearch();
+            return;
+        }
+        
+        // Если запрос достаточно длинный - запускаем поиск с задержкой
+        if (query.length >= 2) {
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 600);
+        }
+    }
+
+    function performSearch(searchQuery = null) {
+        const searchInput = document.getElementById("search-input");
+        const query = searchQuery || searchInput.value.trim();
+        
+        if (query === currentSearchQuery && isSearching) {
+            return; // Уже ищем этот запрос
+        }
+        
+        currentSearchQuery = query;
+        
+        if (query.length < 2) {
+            loadArticles(); // Показываем все статьи если запрос короткий
+            return;
+        }
+        
+        showLoading(true);
+        searchArticles(query); // Используем поиск через POST /search
+    }
+
+    function clearSearch() {
+        const searchInput = document.getElementById("search-input");
+        searchInput.value = '';
+        currentSearchQuery = '';
+        updateSearchUI('');
+        loadArticles(); // Загружаем все статьи
+    }
+
+    function showLoading(show) {
+        const loadingSpinner = document.getElementById("loading-spinner");
+        const articlesList = document.getElementById("articles-list");
+        const noResults = document.getElementById("no-results");
+        
+        if (show) {
+            loadingSpinner.classList.remove("hidden");
+            articlesList.classList.add("hidden");
+            noResults.classList.add("hidden");
+            isSearching = true;
+        } else {
+            loadingSpinner.classList.add("hidden");
+            articlesList.classList.remove("hidden");
+            isSearching = false;
+        }
+    }
+
+    function updateSearchUI(query) {
+        const clearSearchBtn = document.getElementById("clear-search-btn");
+        const searchInfo = document.getElementById("search-info");
+        
+        if (query && query.length >= 2) {
+            clearSearchBtn.style.display = 'block';
+            searchInfo.innerHTML = `🔍 Результаты поиска по запросу: "<strong>${escapeHtml(query)}</strong>"`;
+            searchInfo.classList.remove("hidden");
+        } else {
+            clearSearchBtn.style.display = 'none';
+            searchInfo.classList.add("hidden");
+        }
+    }
+
+    // === Загрузка всех статей (без поиска) ===
     async function loadArticles() {
         try {
+            showLoading(false);
+            updateSearchUI('');
+            
             const res = await fetch("/api/v1/articles");
             if (!res.ok) throw new Error("Не удалось загрузить статьи");
             const articles = await res.json();
 
-            const container = document.getElementById("articles-list");
-            container.innerHTML = "";
-
-            articles.forEach(art => {
-                const date = new Date(art.createdAt).toLocaleString("ru-RU");
-                const div = document.createElement("div");
-                div.className = "card article-card";
-                div.innerHTML = `
-                    <div class="card-body">
-                        <h5 class="card-title">${art.title}</h5>
-                        <p class="card-text">${art.description?.substring(0, 150)}${art.description?.length > 150 ? '...' : ''}</p>
-                        <small class="text-muted">Автор: ${art.authorName || 'Аноним'} | ${date}</small>
-                        <br>
-                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="viewArticle(${art.id})">Читать далее</button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
+            renderArticles(articles);
+            
         } catch (e) {
             console.error("Ошибка загрузки статей:", e);
-            document.getElementById("articles-list").innerHTML = "<p class='text-danger'>Не удалось загрузить статьи.</p>";
+            showError("articles-list", "Не удалось загрузить статьи. Проверьте соединение.");
+        } finally {
+            showLoading(false);
         }
     }
 
-    // === Создание статьи ===
+    // === Поиск статей через твой бэкенд ===
+    async function searchArticles(searchQuery) {
+        try {
+            showLoading(true);
+            updateSearchUI(searchQuery);
+            
+            // Отправляем как объект с полем query
+            const searchRequest = { query: searchQuery };
+            
+            const res = await fetch("/api/v1/articles/search", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(searchRequest)
+            });
+            
+            if (!res.ok) throw new Error("Не удалось выполнить поиск");
+            const articles = await res.json();
+
+            renderArticles(articles);
+            
+        } catch (e) {
+            console.error("Ошибка поиска статей:", e);
+            showError("articles-list", "Ошибка при поиске статей.");
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // === Рендеринг статей (БЕЗ подсветки) ===
+    function renderArticles(articles) {
+        const container = document.getElementById("articles-list");
+        const noResults = document.getElementById("no-results");
+        
+        // Скрываем/показываем сообщение "не найдено"
+        if (articles.length === 0) {
+            if (currentSearchQuery && currentSearchQuery.length >= 2) {
+                container.innerHTML = '';
+                noResults.classList.remove("hidden");
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <h5>📝 Статей пока нет</h5>
+                        <p>Будьте первым, кто опубликует статью!</p>
+                        <button class="btn btn-primary mt-2" onclick="showCreateArticle()">
+                            Написать статью
+                        </button>
+                    </div>
+                `;
+                noResults.classList.add("hidden");
+            }
+            return;
+        }
+        
+        noResults.classList.add("hidden");
+        container.innerHTML = "";
+        
+        articles.forEach(art => {
+            const date = new Date(art.createdAt).toLocaleString("ru-RU");
+            const div = document.createElement("div");
+            div.className = "card article-card";
+            
+            // БЕЗ подсветки - просто отображаем текст как есть
+            let titleHtml = escapeHtml(art.title);
+            let contentHtml = escapeHtml(art.content?.substring(0, 200) || '');
+            let contentSuffix = art.content?.length > 200 ? '...' : '';
+            
+            div.innerHTML = `
+                <div class="card-body">
+                    <h5 class="card-title">${titleHtml}</h5>
+                    <p class="card-text">${contentHtml}${contentSuffix}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            👤 ${art.authorName || 'Аноним'} | 📅 ${date}
+                        </small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewArticle(${art.id})">
+                            Читать далее →
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // === Вспомогательные функции ===
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+    }
+
+    // === Остальные функции ===
     async function createArticle() {
         const title = document.getElementById("article-title-input").value.trim();
         const content = document.getElementById("article-content-input").value.trim();
 
         if (!title || !content) {
-            document.getElementById("create-error").textContent = "Заполните все поля.";
-            document.getElementById("create-error").classList.remove("hidden");
+            showError("create-error", "Заполните все поля.");
             return;
         }
 
         try {
             const res = await fetch("/api/v1/articles", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ title, content })
             });
 
@@ -156,53 +380,79 @@
                 loadArticles();
                 document.getElementById("article-title-input").value = "";
                 document.getElementById("article-content-input").value = "";
+                showError("create-error", "", true);
             } else {
                 const errorText = res.status === 403 
                     ? "Требуется авторизация" 
                     : "Ошибка публикации";
-                document.getElementById("create-error").textContent = errorText;
-                document.getElementById("create-error").classList.remove("hidden");
+                showError("create-error", errorText);
             }
         } catch (e) {
             console.error("Ошибка при создании статьи:", e);
-            document.getElementById("create-error").textContent = "Нет связи с сервером";
-            document.getElementById("create-error").classList.remove("hidden");
+            showError("create-error", "Нет связи с сервером");
         }
     }
 
-    // === Выход ===
+    function goToProfile() {
+        window.location.href = `/profile.html?id=${userId}`;
+    }
+
     async function logout() {
         try {
-            await fetch("/api/v1/logout", {
-                method: "POST"
+            await fetch("/api/v1/auth/logout", {
+                method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
         } catch (e) {
             console.warn("Ошибка при вызове logout:", e);
-            // Всё равно выходим
         } finally {
-            // Очищаем данные
             localStorage.removeItem("userId");
             localStorage.removeItem("username");
-            // Редирект на страницу входа
+            localStorage.removeItem("userEmail");
+            localStorage.removeItem("token");
             window.location.href = "/login.html";
         }
     }
 
-    // === Просмотр статьи (заглушка) ===
     function viewArticle(id) {
-        alert("Просмотр статьи #" + id);
-    }
-
-    // === Поиск (заглушка) ===
-    function searchArticles() {
-        // Можно реализовать позже
-        loadArticles();
+        window.location.href = `/article.html?id=${id}`;
     }
 
     // === Инициализация ===
     updateAuthUI();
     loadArticles();
-</script>
 
+    // Обработка хэша в URL
+    window.addEventListener('load', () => {
+        if (window.location.hash === '#create') {
+            showCreateArticle();
+        }
+        
+        // Если в URL есть параметр поиска
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
+        if (searchParam) {
+            document.getElementById('search-input').value = searchParam;
+            performSearch(searchParam);
+        }
+    });
+
+    window.addEventListener('hashchange', () => {
+        if (window.location.hash === '#create') {
+            showCreateArticle();
+        } else {
+            showHome();
+        }
+    });
+
+    // Обработка клавиши Enter в поиске
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+</script>
 </body>
 </html>

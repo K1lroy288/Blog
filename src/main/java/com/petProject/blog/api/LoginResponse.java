@@ -12,6 +12,5 @@ import lombok.experimental.Accessors;
 public class LoginResponse {
     private Integer id;
     private String username;
-    private String password;
     private Set<Role> roles;
 }

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Статья</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        body { padding-top: 60px; background-color: #f8f9fa; }
+        .hidden { display: none !important; }
+        footer { margin-top: 3rem; text-align: center; color: #6c757d; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<!-- Навбар -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+    <div class="container">
+        <a class="navbar-brand" href="/blog.html">Мой Блог</a>
+        <div class="ms-auto">
+            <span id="user-panel" class="hidden">
+                Добро пожаловать, <strong id="username"></strong>
+                <a href="/blog.html" class="btn btn-warning btn-sm ms-2">Новая статья</a>
+                <button class="btn btn-danger btn-sm ms-2" onclick="logout()">Выход</button>
+            </span>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div id="article-container" class="hidden">
+        <button class="btn btn-secondary mb-3" onclick="goBack()">← Назад к списку</button>
+        <h1 id="article-title"></h1>
+        <p><small class="text-muted">
+            Автор: <span id="article-author"></span> | 
+            <span id="article-date"></span>
+        </small></p>
+        <div id="article-content"></div>
+    </div>
+
+    <div id="loading" class="text-center">
+        <p>Загрузка статьи...</p>
+    </div>
+
+    <div id="error" class="alert alert-danger hidden">
+        Статья не найдена.
+    </div>
+</div>
+
+<footer>
+    &copy; 2025 Мой Блог. Все права защищены.
+</footer>
+
+<script>
+    // === Получаем ID из URL ===
+    const urlParams = new URLSearchParams(window.location.search);
+    const articleId = urlParams.get('id');
+
+    if (!articleId || isNaN(articleId)) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('error').classList.remove('hidden');
+    }
+
+    // === Данные пользователя ===
+    let userId = localStorage.getItem("userId");
+    let username = localStorage.getItem("username");
+
+    function updateAuthUI() {
+        const userPanel = document.getElementById("user-panel");
+        const usernameEl = document.getElementById("username");
+        if (userId && username) {
+            userPanel.classList.remove("hidden");
+            usernameEl.textContent = username;
+        }
+    }
+
+    // === Загрузка статьи ===
+    async function loadArticle() {
+        try {
+            const res = await fetch(`/api/v1/articles/${articleId}`);
+            if (!res.ok) throw new Error("Not found");
+            
+            const article = await res.json();
+            
+            document.getElementById('article-title').textContent = article.title;
+            document.getElementById('article-author').textContent = article.authorName || 'Аноним';
+            document.getElementById('article-date').textContent = 
+                new Date(article.createdAt).toLocaleString("ru-RU");
+            document.getElementById('article-content').textContent = article.description;
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('article-container').classList.remove('hidden');
+        } catch (e) {
+            console.error("Ошибка загрузки статьи:", e);
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+        }
+    }
+
+    // === Выход ===
+    async function logout() {
+        try {
+            await fetch("/api/v1/logout", { method: "POST" });
+        } catch (e) {
+            console.warn("Logout error:", e);
+        } finally {
+            localStorage.removeItem("userId");
+            localStorage.removeItem("username");
+            window.location.href = "/login.html";
+        }
+    }
+
+    function goBack() {
+        window.location.href = "/blog.html";
+    }
+
+    // === Инициализация ===
+    updateAuthUI();
+    if (articleId) loadArticle();
+</script>
+
+</body>
+</html>

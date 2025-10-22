@@ -2,6 +2,7 @@ package com.petProject.blog.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -49,11 +50,19 @@ public class AuthController {
 
         LoginResponse loginResponse = new LoginResponse()
             .setId(user.getId())
-            .setPassword(user.getPassword())
             .setUsername(user.getUsername())
             .setRoles(user.getRoles());
 
         return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping(value="/logout")
+    public void logout(HttpServletRequest httpRequest) {
+        
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            httpRequest.getSession().invalidate();
+        }
     }
 
 }
