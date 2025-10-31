@@ -14,11 +14,11 @@ public class ArticleResponse {
     private String title;
     private String content;
     private LocalDateTime createdAt;
-    private String authorName;
+    private String authorUsername;
 
     public static ArticleResponse buildArticleResponse(Article article) {
         return new ArticleResponse()
-            .setAuthorName(article.getAuthor().getUsername())
+            .setAuthorUsername(article.getAuthor().getUsername())
             .setContent(article.getContent())
             .setId(article.getId())
             .setTitle(article.getTitle())

@@ -53,8 +53,14 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Set<Role> roles;
 
+    @Size(max=250, message="Status cannot exceed 250 characters")
+    private String status;
+
     @OneToMany(mappedBy="author", cascade=CascadeType.ALL, orphanRemoval=true)
     private List<Article> articles;
+
+    @OneToMany(mappedBy="author", cascade=CascadeType.ALL, orphanRemoval=true)
+    private List<Article> comments;
 
     @CreatedDate
     @Column(name="created_at")

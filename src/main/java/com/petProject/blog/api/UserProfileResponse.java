@@ -10,9 +10,10 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain=true)
-public class UserProfile {
+public class UserProfileResponse {
     private Integer id;
     private String username;
+    private String status;
     private LocalDateTime createdAt;
     private Integer articlesCount;
     private Set<Role> roles;

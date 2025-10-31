@@ -13,14 +13,13 @@
 </head>
 <body>
 
-<!-- Навбар -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
     <div class="container">
         <a class="navbar-brand" href="/blog.html">Мой Блог</a>
         <div class="ms-auto">
             <span id="user-panel" class="hidden">
                 Добро пожаловать, <strong id="username"></strong>
-                <a href="/blog.html" class="btn btn-warning btn-sm ms-2">Новая статья</a>
+                <a href="/blog.html#create" class="btn btn-warning btn-sm ms-2">Новая статья</a>
                 <button class="btn btn-danger btn-sm ms-2" onclick="logout()">Выход</button>
             </span>
         </div>
@@ -32,7 +31,7 @@
         <button class="btn btn-secondary mb-3" onclick="goBack()">← Назад к списку</button>
         <h1 id="article-title"></h1>
         <p><small class="text-muted">
-            Автор: <span id="article-author"></span> | 
+            Автор: <a href="#" id="article-author-link"></a> | 
             <span id="article-date"></span>
         </small></p>
         <div id="article-content"></div>
@@ -52,7 +51,6 @@
 </footer>
 
 <script>
-    // === Получаем ID из URL ===
     const urlParams = new URLSearchParams(window.location.search);
     const articleId = urlParams.get('id');
 
@@ -61,7 +59,6 @@
         document.getElementById('error').classList.remove('hidden');
     }
 
-    // === Данные пользователя ===
     let userId = localStorage.getItem("userId");
     let username = localStorage.getItem("username");
 
@@ -74,7 +71,6 @@
         }
     }
 
-    // === Загрузка статьи ===
     async function loadArticle() {
         try {
             const res = await fetch(`/api/v1/articles/${articleId}`);
@@ -83,10 +79,24 @@
             const article = await res.json();
             
             document.getElementById('article-title').textContent = article.title;
-            document.getElementById('article-author').textContent = article.authorName || 'Аноним';
+            
+            const authorLink = document.getElementById('article-author-link');
+            const authorName = article.authorName || article.authorUsername || 'Аноним';
+            authorLink.textContent = authorName;
+            
+            if (article.authorUsername) {
+                authorLink.href = `/profile.html?username=${encodeURIComponent(article.authorUsername)}`;
+                authorLink.style.textDecoration = 'underline';
+                authorLink.style.cursor = 'pointer';
+            } else {
+                authorLink.href = '#';
+                authorLink.style.textDecoration = 'none';
+                authorLink.style.color = 'inherit';
+            }
+            
             document.getElementById('article-date').textContent = 
                 new Date(article.createdAt).toLocaleString("ru-RU");
-            document.getElementById('article-content').textContent = article.description;
+            document.getElementById('article-content').textContent = article.content;
 
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('article-container').classList.remove('hidden');
@@ -97,15 +107,13 @@
         }
     }
 
-    // === Выход ===
     async function logout() {
         try {
-            await fetch("/api/v1/logout", { method: "POST" });
+            await fetch("/api/v1/auth/logout", { method: "POST" });
         } catch (e) {
             console.warn("Logout error:", e);
         } finally {
-            localStorage.removeItem("userId");
-            localStorage.removeItem("username");
+            localStorage.clear();
             window.location.href = "/login.html";
         }
     }
@@ -114,10 +122,8 @@
         window.location.href = "/blog.html";
     }
 
-    // === Инициализация ===
     updateAuthUI();
     if (articleId) loadArticle();
 </script>
-
 </body>
 </html>

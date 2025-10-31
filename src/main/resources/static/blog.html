@@ -22,7 +22,7 @@
 <!-- Навбар -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="#" onclick="goToProfile()">Мой Блог</a>
+        <a class="navbar-brand" href="#" onclick="loadArticles()">Мой Блог</a>
         <div class="ms-auto">
             <span id="user-panel">
                 <img src="" alt="Аватар" class="user-avatar" id="user-avatar">
@@ -141,7 +141,7 @@
     // === Загрузка аватара пользователя ===
     async function loadUserAvatar() {
         try {
-            const res = await fetch(`/api/v1/users/${userId}/avatar`);
+            const res = await fetch(`/api/v1/users/${username}/avatar`);
             if (res.ok) {
                 const blob = await res.blob();
                 const avatarUrl = URL.createObjectURL(blob);
@@ -157,16 +157,13 @@
         const searchInput = document.getElementById("search-input");
         const query = searchInput.value.trim();
         
-        // Очищаем предыдущий таймер
         clearTimeout(searchTimeout);
         
-        // Если запрос слишком короткий и был предыдущий поиск - очищаем
         if (query.length < 2 && currentSearchQuery) {
             clearSearch();
             return;
         }
         
-        // Если запрос достаточно длинный - запускаем поиск с задержкой
         if (query.length >= 2) {
             searchTimeout = setTimeout(() => {
                 performSearch(query);
@@ -178,19 +175,17 @@
         const searchInput = document.getElementById("search-input");
         const query = searchQuery || searchInput.value.trim();
         
-        if (query === currentSearchQuery && isSearching) {
-            return; // Уже ищем этот запрос
-        }
+        if (query === currentSearchQuery && isSearching) return;
         
         currentSearchQuery = query;
         
         if (query.length < 2) {
-            loadArticles(); // Показываем все статьи если запрос короткий
+            loadArticles();
             return;
         }
         
         showLoading(true);
-        searchArticles(query); // Используем поиск через POST /search
+        searchArticles(query);
     }
 
     function clearSearch() {
@@ -198,7 +193,7 @@
         searchInput.value = '';
         currentSearchQuery = '';
         updateSearchUI('');
-        loadArticles(); // Загружаем все статьи
+        loadArticles();
     }
 
     function showLoading(show) {
@@ -232,7 +227,7 @@
         }
     }
 
-    // === Загрузка всех статей (без поиска) ===
+    // === Загрузка всех статей ===
     async function loadArticles() {
         try {
             showLoading(false);
@@ -252,13 +247,12 @@
         }
     }
 
-    // === Поиск статей через твой бэкенд ===
+    // === Поиск статей через POST /search ===
     async function searchArticles(searchQuery) {
         try {
             showLoading(true);
             updateSearchUI(searchQuery);
             
-            // Отправляем как объект с полем query
             const searchRequest = { query: searchQuery };
             
             const res = await fetch("/api/v1/articles/search", {
@@ -283,12 +277,11 @@
         }
     }
 
-    // === Рендеринг статей (БЕЗ подсветки) ===
+    // === Рендеринг статей ===
     function renderArticles(articles) {
         const container = document.getElementById("articles-list");
         const noResults = document.getElementById("no-results");
         
-        // Скрываем/показываем сообщение "не найдено"
         if (articles.length === 0) {
             if (currentSearchQuery && currentSearchQuery.length >= 2) {
                 container.innerHTML = '';
@@ -316,10 +309,14 @@
             const div = document.createElement("div");
             div.className = "card article-card";
             
-            // БЕЗ подсветки - просто отображаем текст как есть
             let titleHtml = escapeHtml(art.title);
             let contentHtml = escapeHtml(art.content?.substring(0, 200) || '');
             let contentSuffix = art.content?.length > 200 ? '...' : '';
+            
+            // Ссылка на профиль по username
+            const authorLink = art.authorUsername 
+                ? `<a href="/profile.html?username=${encodeURIComponent(art.authorUsername)}">${escapeHtml(art.authorName || art.authorUsername)}</a>`
+                : 'Аноним';
             
             div.innerHTML = `
                 <div class="card-body">
@@ -327,7 +324,7 @@
                     <p class="card-text">${contentHtml}${contentSuffix}</p>
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
-                            👤 ${art.authorName || 'Аноним'} | 📅 ${date}
+                            👤 ${authorLink} | 📅 ${date}
                         </small>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewArticle(${art.id})">
                             Читать далее →
@@ -344,8 +341,8 @@
         if (!unsafe) return '';
         return unsafe
             .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
+            .replace(/</g, "<")
+            .replace(/>/g, ">")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
@@ -394,7 +391,7 @@
     }
 
     function goToProfile() {
-        window.location.href = `/profile.html?id=${userId}`;
+        window.location.href = `/profile.html?username=${encodeURIComponent(username)}`;
     }
 
     async function logout() {
@@ -408,10 +405,7 @@
         } catch (e) {
             console.warn("Ошибка при вызове logout:", e);
         } finally {
-            localStorage.removeItem("userId");
-            localStorage.removeItem("username");
-            localStorage.removeItem("userEmail");
-            localStorage.removeItem("token");
+            localStorage.clear(); // или по отдельности
             window.location.href = "/login.html";
         }
     }
@@ -424,13 +418,11 @@
     updateAuthUI();
     loadArticles();
 
-    // Обработка хэша в URL
     window.addEventListener('load', () => {
         if (window.location.hash === '#create') {
             showCreateArticle();
         }
         
-        // Если в URL есть параметр поиска
         const urlParams = new URLSearchParams(window.location.search);
         const searchParam = urlParams.get('search');
         if (searchParam) {
@@ -447,7 +439,6 @@
         }
     });
 
-    // Обработка клавиши Enter в поиске
     document.getElementById('search-input').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             performSearch();

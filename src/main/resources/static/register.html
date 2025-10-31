@@ -43,6 +43,16 @@
         .alert {
             font-size: 0.9em;
         }
+        .form-text {
+            font-size: 0.85em;
+            margin-top: 0.25rem;
+        }
+        .is-invalid {
+            border-color: #dc3545;
+        }
+        .is-valid {
+            border-color: #198754;
+        }
     </style>
 </head>
 <body>
@@ -65,7 +75,16 @@
                    name="username"
                    class="form-control"
                    placeholder="Придумайте логин"
+                   minlength="3"
+                   maxlength="20"
+                   pattern="[a-zA-Z0-9_]+"
                    required autofocus>
+            <div class="form-text">
+                От 3 до 20 символов. Только буквы, цифры и подчеркивания.
+            </div>
+            <div class="invalid-feedback" id="username-error" style="display: none;">
+                Логин должен быть от 3 до 20 символов и содержать только буквы, цифры и подчеркивания
+            </div>
         </div>
 
         <!-- Поле пароля -->
@@ -76,7 +95,14 @@
                    name="password"
                    class="form-control"
                    placeholder="Придумайте пароль"
+                   minlength="6"
                    required>
+            <div class="form-text">
+                Минимум 6 символов.
+            </div>
+            <div class="invalid-feedback" id="password-length-error" style="display: none;">
+                Пароль должен содержать минимум 6 символов
+            </div>
         </div>
 
         <!-- Подтверждение пароля -->
@@ -88,13 +114,13 @@
                    class="form-control"
                    placeholder="Повторите пароль"
                    required>
-            <div class="invalid-feedback" id="password-error" style="display: none;">
+            <div class="invalid-feedback" id="password-match-error" style="display: none;">
                 Пароли не совпадают
             </div>
         </div>
 
         <!-- Кнопка регистрации -->
-        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Зарегистрироваться</button>
     </form>
 
     <!-- Ссылка на вход -->
@@ -110,25 +136,130 @@
         document.getElementById('error-message').style.display = 'block';
     }
 
+    // Элементы формы
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
+
+    // Регулярное выражение для валидации логина
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+
+    // Функции валидации
+    function validateUsername() {
+        const username = usernameInput.value.trim();
+        const usernameError = document.getElementById('username-error');
+        
+        if (username.length < 3 || username.length > 20) {
+            usernameError.textContent = 'Логин должен быть от 3 до 20 символов';
+            usernameError.style.display = 'block';
+            usernameInput.classList.add('is-invalid');
+            usernameInput.classList.remove('is-valid');
+            return false;
+        }
+        
+        if (!usernameRegex.test(username)) {
+            usernameError.textContent = 'Логин может содержать только буквы, цифры и подчеркивания';
+            usernameError.style.display = 'block';
+            usernameInput.classList.add('is-invalid');
+            usernameInput.classList.remove('is-valid');
+            return false;
+        }
+        
+        usernameError.style.display = 'none';
+        usernameInput.classList.remove('is-invalid');
+        usernameInput.classList.add('is-valid');
+        return true;
+    }
+
+    function validatePassword() {
+        const password = passwordInput.value;
+        const passwordLengthError = document.getElementById('password-length-error');
+        
+        if (password.length < 6) {
+            passwordLengthError.style.display = 'block';
+            passwordInput.classList.add('is-invalid');
+            passwordInput.classList.remove('is-valid');
+            return false;
+        }
+        
+        passwordLengthError.style.display = 'none';
+        passwordInput.classList.remove('is-invalid');
+        passwordInput.classList.add('is-valid');
+        return true;
+    }
+
+    function validatePasswordMatch() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const passwordMatchError = document.getElementById('password-match-error');
+        
+        if (password !== confirmPassword) {
+            passwordMatchError.style.display = 'block';
+            confirmPasswordInput.classList.add('is-invalid');
+            confirmPasswordInput.classList.remove('is-valid');
+            return false;
+        }
+        
+        passwordMatchError.style.display = 'none';
+        confirmPasswordInput.classList.remove('is-invalid');
+        confirmPasswordInput.classList.add('is-valid');
+        return true;
+    }
+
+    function validateForm() {
+        const isUsernameValid = validateUsername();
+        const isPasswordValid = validatePassword();
+        const isPasswordMatchValid = validatePasswordMatch();
+        
+        return isUsernameValid && isPasswordValid && isPasswordMatchValid;
+    }
+
+    // Слушатели событий для реальной валидации
+    usernameInput.addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+            validateUsername();
+        } else {
+            document.getElementById('username-error').style.display = 'none';
+            this.classList.remove('is-invalid', 'is-valid');
+        }
+    });
+
+    passwordInput.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            validatePassword();
+            validatePasswordMatch(); // Также проверяем совпадение при изменении пароля
+        } else {
+            document.getElementById('password-length-error').style.display = 'none';
+            this.classList.remove('is-invalid', 'is-valid');
+        }
+    });
+
+    confirmPasswordInput.addEventListener('input', function() {
+        if (this.value.length > 0) {
+            validatePasswordMatch();
+        } else {
+            document.getElementById('password-match-error').style.display = 'none';
+            this.classList.remove('is-invalid', 'is-valid');
+        }
+    });
+
     // Обработка отправки формы через fetch (JSON)
     document.getElementById('registerForm').addEventListener('submit', async function (e) {
         e.preventDefault(); // ← отменяем стандартную отправку формы
 
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        const passwordError = document.getElementById('password-error');
-        const errorMessage = document.getElementById('error-message');
-
-        // Валидация паролей на клиенте
-        if (password !== confirmPassword) {
-            passwordError.style.display = 'block';
-            document.getElementById('confirmPassword').classList.add('is-invalid');
+        // Валидация всех полей
+        if (!validateForm()) {
             return;
-        } else {
-            passwordError.style.display = 'none';
-            document.getElementById('confirmPassword').classList.remove('is-invalid');
         }
+
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+
+        // Блокируем кнопку на время отправки
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Регистрация...';
 
         // Скрываем предыдущие ошибки
         errorMessage.style.display = 'none';
@@ -142,22 +273,36 @@
                 body: JSON.stringify({
                     username: username,
                     password: password
-                    // confirmPassword не отправляется — его нет в AuthenticationUserRequest
                 })
             });
 
             if (response.ok) {
                 // Успешная регистрация → редирект на страницу входа
                 window.location.href = '/login.html?registered';
+            } else if (response.status === 409) {
+                // Конфликт - пользователь уже существует
+                errorMessage.textContent = 'Пользователь с таким логином уже существует';
+                errorMessage.style.display = 'block';
+                usernameInput.classList.add('is-invalid');
             } else {
-                // Ошибка (например, 409 Conflict или 500)
+                // Другие ошибки
                 throw new Error('Registration failed');
             }
         } catch (error) {
             // Показываем ошибку пользователю
+            errorMessage.textContent = 'Ошибка при регистрации. Проверьте соединение.';
             errorMessage.style.display = 'block';
+        } finally {
+            // Разблокируем кнопку
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Зарегистрироваться';
         }
     });
+
+    // Валидация при потере фокуса
+    usernameInput.addEventListener('blur', validateUsername);
+    passwordInput.addEventListener('blur', validatePassword);
+    confirmPasswordInput.addEventListener('blur', validatePasswordMatch);
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

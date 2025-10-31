@@ -9,7 +9,8 @@
         body { padding-top: 60px; background-color: #f8f9fa; }
         .profile-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem 0; margin-bottom: 2rem; }
         .avatar-container { text-align: center; margin-bottom: 1.5rem; }
-        .user-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid white; object-fit: cover; }
+        .user-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid white; object-fit: cover; cursor: pointer; transition: opacity 0.3s; }
+        .user-avatar:hover { opacity: 0.8; }
         .stats-card { text-align: center; padding: 1rem; }
         .stats-number { font-size: 2rem; font-weight: bold; color: #667eea; }
         .article-card { margin-bottom: 1.5rem; transition: transform 0.2s; }
@@ -17,6 +18,24 @@
         .hidden { display: none !important; }
         .back-btn { margin-bottom: 1rem; }
         .role-badge { font-size: 0.8em; }
+        .avatar-edit-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: rgba(0,0,0,0.5); 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            opacity: 0; 
+            transition: opacity 0.3s; 
+            border-radius: 50%;
+        }
+        .avatar-container { position: relative; display: inline-block; }
+        .avatar-container:hover .avatar-edit-overlay { opacity: 1; }
+        .user-status { font-size: 1.1rem; opacity: 0.9; margin-top: 0.5rem; font-style: italic; }
     </style>
 </head>
 <body>
@@ -24,7 +43,7 @@
 <!-- Навбар -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
     <div class="container">
-        <a class="navbar-brand" href="/profile.html">Мой Блог</a>
+        <a class="navbar-brand" href="/blog.html">Мой Блог</a>
         <div class="ms-auto">
             <span id="user-panel">
                 <button class="btn btn-outline-light btn-sm ms-2" onclick="goToHome()">На главную</button>
@@ -47,11 +66,16 @@
                     </ol>
                 </nav>
                 <h1 id="profile-username" class="display-5 fw-bold">Загрузка...</h1>
-                <p class="lead mb-0" id="profile-email"></p>
+                <div id="profile-status" class="user-status">
+                    <!-- Статус будет отображаться здесь -->
+                </div>
             </div>
             <div class="col-md-4 text-center">
                 <div class="avatar-container">
-                    <img src="" alt="Аватар" class="user-avatar" id="profile-avatar">
+                    <img src="" alt="Аватар" class="user-avatar" id="profile-avatar" onclick="editAvatar()">
+                    <div class="avatar-edit-overlay">
+                        <small>Сменить аватар</small>
+                    </div>
                 </div>
             </div>
         </div>
@@ -61,25 +85,19 @@
 <div class="container">
     <!-- Статистика -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card stats-card">
                 <div class="stats-number" id="articles-count">0</div>
                 <div class="text-muted">Статей</div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card stats-card">
                 <div class="stats-number" id="member-days">0</div>
                 <div class="text-muted">Дней с нами</div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card stats-card">
-                <div class="stats-number" id="last-activity">-</div>
-                <div class="text-muted">Последняя активность</div>
-            </div>
-        </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card stats-card">
                 <div class="stats-number" id="user-role">USER</div>
                 <div class="text-muted">Роль</div>
@@ -97,11 +115,15 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <strong>Имя пользователя:</strong>
-                        <div id="info-username" class="text-muted">Загрузка...</div>
+                        <div>
+                            <span id="info-username" class="text-muted">Загрузка...</span>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <strong>Email:</strong>
-                        <div id="info-email" class="text-muted">Загрузка...</div>
+                        <strong>Статус:</strong>
+                        <div>
+                            <span id="info-status" class="text-muted">Не установлен</span>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <strong>Дата регистрации:</strong>
@@ -115,7 +137,8 @@
                     </div>
                     <div id="current-user-actions" class="mt-3 hidden">
                         <hr>
-                        <button class="btn btn-outline-primary btn-sm w-100" onclick="editProfile()">Редактировать профиль</button>
+                        <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="editProfile()">📝 Редактировать профиль</button>
+                        <button class="btn btn-outline-warning btn-sm w-100" onclick="changePassword()">🔐 Сменить пароль</button>
                     </div>
                 </div>
             </div>
@@ -153,6 +176,61 @@
     </div>
 </div>
 
+<!-- Модальное окно редактирования профиля -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактирование профиля</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Имя пользователя</label>
+                    <input type="text" class="form-control" id="edit-username-input" maxlength="20">
+                    <div class="form-text">От 3 до 20 символов (только буквы, цифры, подчеркивания)</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Статус</label>
+                    <textarea class="form-control" id="edit-status-input" rows="3" maxlength="100" placeholder="Расскажите о себе..."></textarea>
+                    <div class="form-text">Максимум 100 символов</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveProfileChanges()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно смены пароля -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Смена пароля</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" class="form-control" id="new-password-input">
+                    <div class="form-text">Минимум 6 символов</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Подтвердите пароль</label>
+                    <input type="password" class="form-control" id="confirm-password-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewPassword()">Сменить пароль</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <footer class="mt-5 py-4 bg-light">
     <div class="container text-center">
         &copy; 2025 Мой Блог. Все права защищены.
@@ -163,45 +241,52 @@
     // === Данные пользователя ===
     let currentUserId = localStorage.getItem("userId");
     let currentUsername = localStorage.getItem("username");
-    let profileUserId = null;
+    let targetUsername = null; // username из URL
+    let profileUserId = null;  // id загруженного профиля (для статей)
+    let token = localStorage.getItem("token");
 
     // === Инициализация ===
     document.addEventListener('DOMContentLoaded', function() {
-        // Получаем ID пользователя из URL параметров
         const urlParams = new URLSearchParams(window.location.search);
-        profileUserId = urlParams.get('id') || currentUserId;
-        
+        targetUsername = urlParams.get('username');
+
+        if (!targetUsername) {
+            alert('Не указан username в URL');
+            window.location.href = '/blog.html';
+            return;
+        }
+
         if (!currentUserId) {
-            // Если пользователь не авторизован, перенаправляем на логин
             window.location.href = '/login.html';
             return;
         }
-        
+
         loadUserProfile();
-        loadUserArticles();
         checkIfCurrentUser();
     });
 
-    // === Проверка, является ли профиль текущим пользователем ===
     function checkIfCurrentUser() {
-        if (profileUserId === currentUserId) {
+        if (targetUsername === currentUsername) {
             document.getElementById('current-user-actions').classList.remove('hidden');
             document.getElementById('current-user-empty-actions').classList.remove('hidden');
         }
     }
 
-    // === Загрузка профиля пользователя ===
+    // === ЗАГРУЗКА ПРОФИЛЯ ПО USERNAME ===
     async function loadUserProfile() {
         try {
-            const response = await fetch(`/api/v1/users/${profileUserId}`);
-            
+            const response = await fetch(`/api/v1/users/${encodeURIComponent(targetUsername)}`);
             if (!response.ok) {
-                throw new Error('Пользователь не найден');
+                if (response.status === 404) {
+                    throw new Error('Пользователь не найден');
+                } else {
+                    throw new Error('Ошибка загрузки профиля');
+                }
             }
-            
-            const userProfile = await response.json();
-            renderUserProfile(userProfile);
-            
+            const profile = await response.json();
+            profileUserId = profile.id; // сохраняем id для загрузки статей
+            renderUserProfile(profile);
+            loadUserArticles(); // теперь можем загрузить статьи
         } catch (error) {
             console.error('Ошибка загрузки профиля:', error);
             document.getElementById('profile-username').textContent = 'Пользователь не найден';
@@ -209,40 +294,37 @@
         }
     }
 
-    // === Отображение профиля пользователя ===
     function renderUserProfile(profile) {
-        // Основная информация
         document.getElementById('profile-username').textContent = profile.username;
-        document.getElementById('profile-email').textContent = profile.email || 'Email не указан';
-        
-        // Информация в карточке
+        const statusEl = document.getElementById('profile-status');
+        if (profile.status && profile.status.trim()) {
+            statusEl.textContent = `"${profile.status}"`;
+            statusEl.classList.remove('hidden');
+        } else {
+            statusEl.classList.add('hidden');
+        }
+
         document.getElementById('info-username').textContent = profile.username;
-        document.getElementById('info-email').textContent = profile.email || 'Email не указан';
-        
-        // Дата регистрации
+        document.getElementById('info-status').textContent = profile.status || 'Не установлен';
+
         if (profile.createdAt) {
             const createdDate = new Date(profile.createdAt);
             document.getElementById('info-created').textContent = createdDate.toLocaleDateString('ru-RU');
-            
-            // Расчет дней с регистрации
-            const today = new Date();
-            const diffTime = Math.abs(today - createdDate);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil((new Date() - createdDate) / (1000 * 60 * 60 * 24));
             document.getElementById('member-days').textContent = diffDays;
         }
-        
-        // Количество статей
-        document.getElementById('articles-count').textContent = profile.articlesCount || 0;
-        document.getElementById('articles-badge').textContent = `${profile.articlesCount || 0} статей`;
-        
-        // Роли
+
+        const articlesCount = profile.articlesCount || 0;
+        document.getElementById('articles-count').textContent = articlesCount;
+        document.getElementById('articles-badge').textContent = `${articlesCount} статей`;
+
         const rolesContainer = document.getElementById('info-roles');
         rolesContainer.innerHTML = '';
         if (profile.roles && profile.roles.length > 0) {
             profile.roles.forEach(role => {
                 const badge = document.createElement('span');
                 badge.className = 'badge bg-primary role-badge me-1';
-                badge.textContent = role;
+                badge.textContent = role.name || role; // поддержка как строк, так и объектов
                 rolesContainer.appendChild(badge);
             });
         } else {
@@ -251,138 +333,263 @@
             badge.textContent = 'USER';
             rolesContainer.appendChild(badge);
         }
-        
-        // Загрузка аватара
+
         loadUserAvatar();
     }
 
-    // === Загрузка аватара пользователя ===
     async function loadUserAvatar() {
         try {
-            const response = await fetch(`/api/v1/users/${profileUserId}/avatar`);
+            const response = await fetch(`/api/v1/users/${encodeURIComponent(targetUsername)}/avatar`);
             if (response.ok) {
                 const blob = await response.blob();
                 const avatarUrl = URL.createObjectURL(blob);
                 document.getElementById('profile-avatar').src = avatarUrl;
             } else {
-                // Устанавливаем дефолтный аватар
-                document.getElementById('profile-avatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iNjAiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTYwIDY1QzY2LjYwNzcgNjUgNzIgNTkuNjA3NyA3MiA1M0M3MiA0Ni4zOTIzIDY2LjYwNzcgNDEgNjAgNDFDNTMuMzkyMyA0MSA0OCA0Ni4zOTIzIDQ4IDUzQzQ4IDU5LjYwNzcgNTMuMzkyMyA2NSA2MCA2NVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00OC44NSA4NUM0OC44NSA3Ni44NTI1IDU1LjM1MjUgNzAgNjMuNSA3MEg1Ni41QzY0LjY0NzUgNzAgNzEuMTUgNzYuODUyNSA3MS4xNSA4NUw0OC44NSA4NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
+                setDefaultAvatar();
             }
         } catch (error) {
             console.error('Ошибка загрузки аватара:', error);
+            setDefaultAvatar();
         }
     }
 
-    // === Загрузка статей пользователя ===
+    function setDefaultAvatar() {
+        document.getElementById('profile-avatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iNjAiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTYwIDY1QzY2LjYwNzcgNjUgNzIgNTkuNjA3NyA3MiA1M0M3MiA0Ni4zOTIzIDY2LjYwNzcgNDEgNjAgNDFDNTMuMzkyMyA0MSA0OCA0Ni4zOTIzIDQ4IDUzQzQ4IDU5LjYwNzcgNTMuMzkyMyA2NSA2MCA2NVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00OC44NSA4NUM0OC44NSA3Ni44NTI1IDU1LjM1MjUgNzAgNjMuNSA3MEg1Ni41QzY0LjY0NzUgNzAgNzEuMTUgNzYuODUyNSA3MS4xNSA4NUw0OC44NSA4NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
+    }
+
+    // === ЗАГРУЗКА СТАТЕЙ ПО USER ID (полученному из профиля) ===
     async function loadUserArticles() {
+        if (!profileUserId) return;
+
         try {
             const response = await fetch(`/api/v1/users/${profileUserId}/articles`);
-            
-            if (!response.ok) {
-                throw new Error('Не удалось загрузить статьи');
-            }
-            
+            if (!response.ok) throw new Error('Не удалось загрузить статьи');
             const articles = await response.json();
             renderUserArticles(articles);
-            
         } catch (error) {
             console.error('Ошибка загрузки статей:', error);
-            document.getElementById('user-articles-loading').innerHTML = 
-                '<p class="text-danger">Не удалось загрузить статьи пользователя</p>';
+            document.getElementById('user-articles-loading').innerHTML = '<p class="text-danger">Не удалось загрузить статьи</p>';
         }
     }
 
-    // === Отображение статей пользователя ===
-    function renderUserArticles(articles) {
-        const loadingElement = document.getElementById('user-articles-loading');
-        const articlesListElement = document.getElementById('user-articles-list');
-        const emptyElement = document.getElementById('user-articles-empty');
-        
-        loadingElement.classList.add('hidden');
-        
-        if (articles.length === 0) {
-            emptyElement.classList.remove('hidden');
+    // === Функции редактирования (работают только для текущего пользователя) ===
+    function editProfile() {
+        if (targetUsername !== currentUsername) return;
+        document.getElementById('edit-username-input').value = document.getElementById('info-username').textContent;
+        document.getElementById('edit-status-input').value = document.getElementById('info-status').textContent;
+        const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+        modal.show();
+    }
+
+    function editAvatar() {
+        if (targetUsername !== currentUsername) return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = handleAvatarUpload;
+        input.click();
+    }
+
+    async function handleAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, выберите изображение');
             return;
         }
-        
-        articlesListElement.classList.remove('hidden');
-        articlesListElement.innerHTML = '';
-        
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Размер файла не должен превышать 2MB');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            const response = await fetch(`/api/v1/users/${currentUserId}/avatar`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('Аватар успешно обновлен!');
+                loadUserAvatar();
+            } else {
+                alert('Ошибка при загрузке аватара');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки аватара:', error);
+            alert('Ошибка при загрузке аватара');
+        }
+    }
+
+    function changePassword() {
+        if (targetUsername !== currentUsername) return;
+        const modal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+        modal.show();
+    }
+
+    async function saveProfileChanges() {
+        if (targetUsername !== currentUsername) return;
+
+        const username = document.getElementById('edit-username-input').value.trim();
+        const status = document.getElementById('edit-status-input').value.trim();
+
+        if (!username || username.length < 3 || username.length > 20) {
+            alert('Имя пользователя должно быть от 3 до 20 символов');
+            return;
+        }
+
+        const updateData = {};
+        if (username !== currentUsername) updateData.username = username;
+        if (status !== (document.getElementById('info-status').textContent || 'Не установлен')) {
+            updateData.status = status;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            alert('Нет изменений для сохранения');
+            return;
+        }
+
+        await updateProfile(updateData);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editProfileModal'));
+        modal.hide();
+    }
+
+    async function saveNewPassword() {
+        if (targetUsername !== currentUsername) return;
+
+        const newPassword = document.getElementById('new-password-input').value;
+        const confirmPassword = document.getElementById('confirm-password-input').value;
+
+        if (!newPassword || newPassword.length < 6) {
+            alert('Пароль должен содержать минимум 6 символов');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            alert('Пароли не совпадают');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/v1/users/${currentUserId}/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ password: newPassword })
+            });
+
+            if (response.ok) {
+                alert('Пароль успешно изменен!');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+                modal.hide();
+                document.getElementById('new-password-input').value = '';
+                document.getElementById('confirm-password-input').value = '';
+            } else {
+                alert('Ошибка при смене пароля');
+            }
+        } catch (error) {
+            console.error('Ошибка смены пароля:', error);
+            alert('Ошибка при смене пароля');
+        }
+    }
+
+    async function updateProfile(updateData) {
+        try {
+            const response = await fetch(`/api/v1/users/${currentUserId}/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                alert('Профиль успешно обновлен!');
+                if (updateData.username) {
+                    localStorage.setItem('username', updateData.username);
+                    currentUsername = updateData.username;
+                }
+                // Перезагружаем профиль, чтобы отобразить изменения
+                loadUserProfile();
+            } else {
+                alert('Ошибка при обновлении профиля');
+            }
+        } catch (error) {
+            console.error('Ошибка обновления профиля:', error);
+            alert('Ошибка при обновлении профиля');
+        }
+    }
+
+    function renderUserArticles(articles) {
+        const loading = document.getElementById('user-articles-loading');
+        const list = document.getElementById('user-articles-list');
+        const empty = document.getElementById('user-articles-empty');
+
+        loading.classList.add('hidden');
+
+        if (articles.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        list.classList.remove('hidden');
+        list.innerHTML = '';
+
         articles.forEach(article => {
-            const articleElement = document.createElement('div');
-            articleElement.className = 'card article-card';
-            
-            const articleDate = new Date(article.createdAt).toLocaleDateString('ru-RU', {
+            const el = document.createElement('div');
+            el.className = 'card article-card';
+            const date = new Date(article.createdAt).toLocaleDateString('ru-RU', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             });
-            
-            articleElement.innerHTML = `
+            el.innerHTML = `
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <h5 class="card-title">${escapeHtml(article.title)}</h5>
-                        <small class="text-muted">${articleDate}</small>
+                        <small class="text-muted">${date}</small>
                     </div>
-                    <p class="card-text">${escapeHtml(article.content.substring(0, 200))}${article.content.length > 200 ? '...' : ''}</p>
+                    <p class="card-text">${escapeHtml(article.content?.substring(0, 200) || '')}${(article.content?.length > 200) ? '...' : ''}</p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            ${article.authorName || 'Аноним'}
-                        </small>
-                        <button class="btn btn-outline-primary btn-sm" onclick="viewArticle(${article.id})">
-                            Читать далее
-                        </button>
+                        <small class="text-muted">${article.authorName || 'Аноним'}</small>
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewArticle(${article.id})">Читать далее</button>
                     </div>
                 </div>
             `;
-            
-            articlesListElement.appendChild(articleElement);
+            list.appendChild(el);
         });
     }
 
-    // === Вспомогательные функции ===
     function escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = text || '';
         return div.innerHTML;
     }
 
     // === Навигация ===
-    function goToHome() {
-        window.location.href = '/blog.html';
-    }
+    function goToHome() { window.location.href = '/blog.html'; }
+    function goToCreateArticle() { window.location.href = '/blog.html#create'; }
+    function viewArticle(id) { window.location.href = `/article.html?id=${id}`; }
 
-    function goToCreateArticle() {
-        window.location.href = '/blog.html#create';
-    }
-
-    function viewArticle(articleId) {
-        window.location.href = `/article.html?id=${articleId}`;
-    }
-
-    function editProfile() {
-        // В будущем можно реализовать редактирование профиля
-        alert('Редактирование профиля будет доступно в следующей версии');
-    }
-
-    // === Выход ===
     async function logout() {
         try {
             await fetch('/api/v1/auth/logout', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-        } catch (error) {
-            console.warn('Ошибка при выходе:', error);
+        } catch (e) {
+            console.warn('Logout error:', e);
         } finally {
-            localStorage.removeItem('userId');
-            localStorage.removeItem('username');
-            localStorage.removeItem('token');
+            localStorage.clear();
             window.location.href = '/login.html';
         }
     }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
