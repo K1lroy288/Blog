@@ -40,6 +40,7 @@ public class Article {
     private String title;
 
     @NotBlank(message="Content is required")
+    @Column(columnDefinition="TEXT")
     private String content;
 
     @ManyToOne(fetch=FetchType.LAZY)

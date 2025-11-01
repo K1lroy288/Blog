@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -35,6 +36,7 @@ public class Comment {
     private User author;
 
     @NotBlank(message="Content is required")
+    @Size(max=250, message="Comment cant exceed 250 character")
     private String content;
 
     @ManyToOne(fetch=FetchType.LAZY)

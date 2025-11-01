@@ -8,9 +8,6 @@
     <style>
         body { padding-top: 60px; background-color: #f8f9fa; }
         .profile-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem 0; margin-bottom: 2rem; }
-        .avatar-container { text-align: center; margin-bottom: 1.5rem; }
-        .user-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid white; object-fit: cover; cursor: pointer; transition: opacity 0.3s; }
-        .user-avatar:hover { opacity: 0.8; }
         .stats-card { text-align: center; padding: 1rem; }
         .stats-number { font-size: 2rem; font-weight: bold; color: #667eea; }
         .article-card { margin-bottom: 1.5rem; transition: transform 0.2s; }
@@ -18,24 +15,14 @@
         .hidden { display: none !important; }
         .back-btn { margin-bottom: 1rem; }
         .role-badge { font-size: 0.8em; }
-        .avatar-edit-overlay { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background: rgba(0,0,0,0.5); 
-            color: white; 
+        .user-status { font-size: 1.1rem; opacity: 0.9; margin-top: 0.5rem; font-style: italic; }
+        .comments-count { 
             display: flex; 
             align-items: center; 
-            justify-content: center; 
-            opacity: 0; 
-            transition: opacity 0.3s; 
-            border-radius: 50%;
+            gap: 5px; 
+            color: #6c757d; 
+            font-size: 0.9rem; 
         }
-        .avatar-container { position: relative; display: inline-block; }
-        .avatar-container:hover .avatar-edit-overlay { opacity: 1; }
-        .user-status { font-size: 1.1rem; opacity: 0.9; margin-top: 0.5rem; font-style: italic; }
     </style>
 </head>
 <body>
@@ -58,7 +45,7 @@
 <div class="profile-header">
     <div class="container">
         <div class="row align-items-center">
-            <div class="col-md-8">
+            <div class="col-md-12">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb" style="--bs-breadcrumb-divider: '>'; background: transparent;">
                         <li class="breadcrumb-item"><a href="/blog.html" class="text-white">Главная</a></li>
@@ -68,14 +55,6 @@
                 <h1 id="profile-username" class="display-5 fw-bold">Загрузка...</h1>
                 <div id="profile-status" class="user-status">
                     <!-- Статус будет отображаться здесь -->
-                </div>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="avatar-container">
-                    <img src="" alt="Аватар" class="user-avatar" id="profile-avatar" onclick="editAvatar()">
-                    <div class="avatar-edit-overlay">
-                        <small>Сменить аватар</small>
-                    </div>
                 </div>
             </div>
         </div>
@@ -163,7 +142,6 @@
                     </div>
                     <div id="user-articles-empty" class="hidden text-center py-4">
                         <div class="text-muted">
-                            <i class="fas fa-file-alt fa-3x mb-3"></i>
                             <p>У пользователя пока нет статей</p>
                             <div id="current-user-empty-actions" class="hidden">
                                 <button class="btn btn-primary" onclick="goToCreateArticle()">Написать первую статью</button>
@@ -242,7 +220,6 @@
     let currentUserId = localStorage.getItem("userId");
     let currentUsername = localStorage.getItem("username");
     let targetUsername = null; // username из URL
-    let profileUserId = null;  // id загруженного профиля (для статей)
     let token = localStorage.getItem("token");
 
     // === Инициализация ===
@@ -284,9 +261,8 @@
                 }
             }
             const profile = await response.json();
-            profileUserId = profile.id; // сохраняем id для загрузки статей
             renderUserProfile(profile);
-            loadUserArticles(); // теперь можем загрузить статьи
+            loadUserArticles(); // загружаем статьи
         } catch (error) {
             console.error('Ошибка загрузки профиля:', error);
             document.getElementById('profile-username').textContent = 'Пользователь не найден';
@@ -333,43 +309,88 @@
             badge.textContent = 'USER';
             rolesContainer.appendChild(badge);
         }
-
-        loadUserAvatar();
     }
 
-    async function loadUserAvatar() {
-        try {
-            const response = await fetch(`/api/v1/users/${encodeURIComponent(targetUsername)}/avatar`);
-            if (response.ok) {
-                const blob = await response.blob();
-                const avatarUrl = URL.createObjectURL(blob);
-                document.getElementById('profile-avatar').src = avatarUrl;
-            } else {
-                setDefaultAvatar();
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки аватара:', error);
-            setDefaultAvatar();
-        }
-    }
-
-    function setDefaultAvatar() {
-        document.getElementById('profile-avatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iNjAiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTYwIDY1QzY2LjYwNzcgNjUgNzIgNTkuNjA3NyA3MiA1M0M3MiA0Ni4zOTIzIDY2LjYwNzcgNDEgNjAgNDFDNTMuMzkyMyA0MSA0OCA0Ni4zOTIzIDQ4IDUzQzQ4IDU5LjYwNzcgNTMuMzkyMyA2NSA2MCA2NVoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik00OC44NSA4NUM0OC44NSA3Ni44NTI1IDU1LjM1MjUgNzAgNjMuNSA3MEg1Ni41QzY0LjY0NzUgNzAgNzEuMTUgNzYuODUyNSA3MS4xNSA4NUw0OC44NSA4NVoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
-    }
-
-    // === ЗАГРУЗКА СТАТЕЙ ПО USER ID (полученному из профиля) ===
+    // === ЗАГРУЗКА СТАТЕЙ ===
     async function loadUserArticles() {
-        if (!profileUserId) return;
-
         try {
-            const response = await fetch(`/api/v1/users/${profileUserId}/articles`);
+            // Пробуем загрузить все статьи и отфильтровать по автору
+            const response = await fetch('/api/v1/articles');
             if (!response.ok) throw new Error('Не удалось загрузить статьи');
-            const articles = await response.json();
-            renderUserArticles(articles);
+            
+            const allArticles = await response.json();
+            // Фильтруем статьи по имени автора
+            const userArticles = allArticles.filter(article => 
+                article.authorUsername === targetUsername
+            );
+            
+            renderUserArticles(userArticles);
         } catch (error) {
             console.error('Ошибка загрузки статей:', error);
-            document.getElementById('user-articles-loading').innerHTML = '<p class="text-danger">Не удалось загрузить статьи</p>';
+            // Если не удалось загрузить статьи, показываем сообщение
+            document.getElementById('user-articles-loading').innerHTML = 
+                '<p class="text-muted">Не удалось загрузить статьи пользователя</p>';
         }
+    }
+
+    function renderUserArticles(articles) {
+        const loading = document.getElementById('user-articles-loading');
+        const list = document.getElementById('user-articles-list');
+        const empty = document.getElementById('user-articles-empty');
+
+        loading.classList.add('hidden');
+
+        if (!articles || articles.length === 0) {
+            empty.classList.remove('hidden');
+            return;
+        }
+
+        list.classList.remove('hidden');
+        list.innerHTML = '';
+
+        articles.forEach(article => {
+            const el = document.createElement('div');
+            el.className = 'card article-card';
+            const date = formatDate(article.createdAt);
+            const commentsCount = article.comments ? article.comments.length : 0;
+            
+            el.innerHTML = `
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title">${escapeHtml(article.title)}</h5>
+                        <small class="text-muted">${date}</small>
+                    </div>
+                    <p class="card-text">${escapeHtml(article.content?.substring(0, 200) || '')}${(article.content?.length > 200) ? '...' : ''}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="comments-count">
+                            <span>💬</span>
+                            <span>${commentsCount}</span>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewArticle(${article.id})">Читать далее</button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(el);
+        });
+    }
+
+    function formatDate(dateString) {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return 'Дата неизвестна';
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
     }
 
     // === Функции редактирования (работают только для текущего пользователя) ===
@@ -379,49 +400,6 @@
         document.getElementById('edit-status-input').value = document.getElementById('info-status').textContent;
         const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
         modal.show();
-    }
-
-    function editAvatar() {
-        if (targetUsername !== currentUsername) return;
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = handleAvatarUpload;
-        input.click();
-    }
-
-    async function handleAvatarUpload(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            alert('Пожалуйста, выберите изображение');
-            return;
-        }
-        if (file.size > 2 * 1024 * 1024) {
-            alert('Размер файла не должен превышать 2MB');
-            return;
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('avatar', file);
-
-            const response = await fetch(`/api/v1/users/${currentUserId}/avatar`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
-            });
-
-            if (response.ok) {
-                alert('Аватар успешно обновлен!');
-                loadUserAvatar();
-            } else {
-                alert('Ошибка при загрузке аватара');
-            }
-        } catch (error) {
-            console.error('Ошибка загрузки аватара:', error);
-            alert('Ошибка при загрузке аватара');
-        }
     }
 
     function changePassword() {
@@ -523,52 +501,6 @@
             console.error('Ошибка обновления профиля:', error);
             alert('Ошибка при обновлении профиля');
         }
-    }
-
-    function renderUserArticles(articles) {
-        const loading = document.getElementById('user-articles-loading');
-        const list = document.getElementById('user-articles-list');
-        const empty = document.getElementById('user-articles-empty');
-
-        loading.classList.add('hidden');
-
-        if (articles.length === 0) {
-            empty.classList.remove('hidden');
-            return;
-        }
-
-        list.classList.remove('hidden');
-        list.innerHTML = '';
-
-        articles.forEach(article => {
-            const el = document.createElement('div');
-            el.className = 'card article-card';
-            const date = new Date(article.createdAt).toLocaleDateString('ru-RU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            el.innerHTML = `
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h5 class="card-title">${escapeHtml(article.title)}</h5>
-                        <small class="text-muted">${date}</small>
-                    </div>
-                    <p class="card-text">${escapeHtml(article.content?.substring(0, 200) || '')}${(article.content?.length > 200) ? '...' : ''}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">${article.authorName || 'Аноним'}</small>
-                        <button class="btn btn-outline-primary btn-sm" onclick="viewArticle(${article.id})">Читать далее</button>
-                    </div>
-                </div>
-            `;
-            list.appendChild(el);
-        });
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text || '';
-        return div.innerHTML;
     }
 
     // === Навигация ===
