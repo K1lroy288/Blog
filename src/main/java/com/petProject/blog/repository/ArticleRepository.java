@@ -18,4 +18,10 @@ public interface ArticleRepository extends JpaRepository<Article, Integer> {
             "ORDER BY a.createdAt DESC"
     )
     List<Article> findByTitleOrContentContaining(@Param("search") String search);
+
+    @Query("SELECT a FROM Article a LEFT JOIN FETCH a.comments c LEFT JOIN FETCH c.author WHERE a.id = :id")
+    Optional<Article> findByIdWithComments(@Param("id") Integer id);
+
+    @Query("SELECT DISTINCT a FROM Article a LEFT JOIN FETCH a.comments c LEFT JOIN FETCH c.author ORDER BY a.createdAt DESC")
+    List<Article> findAllWithComments();
 }

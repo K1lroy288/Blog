@@ -60,7 +60,7 @@ public class User implements UserDetails {
     private List<Article> articles;
 
     @OneToMany(mappedBy="author", cascade=CascadeType.ALL, orphanRemoval=true)
-    private List<Article> comments;
+    private List<Comment> comments;
 
     @CreatedDate
     @Column(name="created_at")

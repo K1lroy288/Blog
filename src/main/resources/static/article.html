@@ -9,6 +9,22 @@
         body { padding-top: 60px; background-color: #f8f9fa; }
         .hidden { display: none !important; }
         footer { margin-top: 3rem; text-align: center; color: #6c757d; font-size: 0.9em; }
+        .comment { border-left: 3px solid #007bff; padding-left: 15px; margin-bottom: 20px; background-color: white; padding: 15px; border-radius: 5px; }
+        .comment-author { font-weight: bold; color: #007bff; }
+        .comment-author a { 
+            color: #007bff; 
+            text-decoration: none; 
+            transition: color 0.2s;
+        }
+        .comment-author a:hover { 
+            color: #0056b3; 
+            text-decoration: underline;
+        }
+        .comment-date { font-size: 0.8em; color: #6c757d; }
+        .comment-actions { margin-top: 10px; display: flex; gap: 8px; }
+        .comment-form { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 30px; }
+        .my-comment { border-left-color: #28a745; background-color: #f8fff9; }
+        .alert-message { position: fixed; top: 80px; right: 20px; z-index: 1050; min-width: 300px; }
     </style>
 </head>
 <body>
@@ -26,6 +42,9 @@
     </div>
 </nav>
 
+<!-- Контейнер для сообщений -->
+<div id="message-container" class="alert-message"></div>
+
 <div class="container">
     <div id="article-container" class="hidden">
         <button class="btn btn-secondary mb-3" onclick="goBack()">← Назад к списку</button>
@@ -34,7 +53,38 @@
             Автор: <a href="#" id="article-author-link"></a> | 
             <span id="article-date"></span>
         </small></p>
-        <div id="article-content"></div>
+        <div id="article-content" class="mb-4"></div>
+
+        <!-- Секция комментариев -->
+        <div class="comments-section mt-5">
+            <h3>Комментарии</h3>
+            
+            <!-- Форма добавления комментария -->
+            <div id="comment-form-container" class="comment-form hidden">
+                <h5>Добавить комментарий</h5>
+                <form id="comment-form">
+                    <input type="hidden" id="comment-id">
+                    <div class="mb-3">
+                        <textarea class="form-control" id="comment-content" rows="3" 
+                                  placeholder="Введите ваш комментарий..." required></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="comment-submit-btn">Отправить комментарий</button>
+                        <button type="button" class="btn btn-secondary" id="comment-cancel-btn" style="display: none;">Отмена</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Список комментариев -->
+            <div id="comments-list" class="mt-4">
+                <!-- Комментарии будут загружаться здесь -->
+            </div>
+
+            <!-- Сообщение, когда комментариев нет -->
+            <div id="no-comments" class="text-center text-muted mt-4">
+                <p>Пока нет комментариев. Будьте первым!</p>
+            </div>
+        </div>
     </div>
 
     <div id="loading" class="text-center">
@@ -61,13 +111,19 @@
 
     let userId = localStorage.getItem("userId");
     let username = localStorage.getItem("username");
+    let currentArticle = null;
+    let isEditingComment = false;
+    let currentEditingCommentId = null;
 
     function updateAuthUI() {
         const userPanel = document.getElementById("user-panel");
         const usernameEl = document.getElementById("username");
+        const commentFormContainer = document.getElementById("comment-form-container");
+        
         if (userId && username) {
             userPanel.classList.remove("hidden");
             usernameEl.textContent = username;
+            commentFormContainer.classList.remove("hidden");
         }
     }
 
@@ -77,6 +133,7 @@
             if (!res.ok) throw new Error("Not found");
             
             const article = await res.json();
+            currentArticle = article;
             
             document.getElementById('article-title').textContent = article.title;
             
@@ -100,11 +157,222 @@
 
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('article-container').classList.remove('hidden');
+
+            // Загружаем комментарии после загрузки статьи
+            loadComments(article);
         } catch (e) {
             console.error("Ошибка загрузки статьи:", e);
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('error').classList.remove('hidden');
+            showMessage('Ошибка загрузки статьи', 'danger');
         }
+    }
+
+    function loadComments(article) {
+        const commentsList = document.getElementById('comments-list');
+        const noComments = document.getElementById('no-comments');
+        
+        if (!article.comments || article.comments.length === 0) {
+            commentsList.innerHTML = '';
+            noComments.classList.remove('hidden');
+            return;
+        }
+        
+        noComments.classList.add('hidden');
+        
+        commentsList.innerHTML = article.comments.map(comment => {
+            // ВАЖНО: Проверяем по username вместо authorId
+            const isMyComment = username && comment.authorUsername === username;
+            const commentClass = isMyComment ? 'comment my-comment' : 'comment';
+            const displayName = comment.authorName || comment.authorUsername || 'Аноним';
+            
+            // Создаем ссылку на профиль, если есть username
+            let authorHtml;
+            if (comment.authorUsername) {
+                authorHtml = `<a href="/profile.html?username=${encodeURIComponent(comment.authorUsername)}" class="user-profile-link">${escapeHtml(displayName)}</a>`;
+            } else {
+                authorHtml = escapeHtml(displayName);
+            }
+            
+            return `
+            <div class="${commentClass}" id="comment-${comment.id}">
+                <div class="comment-author">${authorHtml}</div>
+                <div class="comment-date">${new Date(comment.createdAt).toLocaleString("ru-RU")}</div>
+                <div class="comment-content">${escapeHtml(comment.content)}</div>
+                ${isMyComment ? `
+                    <div class="comment-actions">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editComment(${comment.id}, '${escapeHtml(comment.content)}')">
+                            ✏️ Редактировать
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteComment(${comment.id})">
+                            🗑️ Удалить
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+            `;
+        }).join('');
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Обработчик формы комментария
+    document.getElementById('comment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const content = document.getElementById('comment-content').value.trim();
+        if (!content) {
+            showMessage('Введите текст комментария', 'warning');
+            return;
+        }
+
+        try {
+            if (isEditingComment) {
+                await updateComment(currentEditingCommentId, content);
+            } else {
+                await createComment(content);
+            }
+        } catch (error) {
+            console.error('Ошибка при сохранении комментария:', error);
+            showMessage('Ошибка при сохранении комментария: ' + error.message, 'danger');
+        }
+    });
+
+    // Кнопка отмены редактирования
+    document.getElementById('comment-cancel-btn').addEventListener('click', resetCommentForm);
+
+    async function createComment(content) {
+        const commentData = {
+            content: content,
+            articleId: parseInt(articleId)
+        };
+
+        const response = await fetch('/api/v1/articles/comment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(commentData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Ошибка при создании комментария');
+        }
+
+        // Перезагружаем статью с обновленными комментариями
+        await loadArticle();
+        resetCommentForm();
+        
+        showMessage('Комментарий успешно добавлен', 'success');
+    }
+
+    async function updateComment(commentId, content) {
+        const commentData = {
+            id: commentId,
+            content: content,
+            articleId: parseInt(articleId)
+        };
+
+        const response = await fetch('/api/v1/articles/comment', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(commentData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Ошибка при обновлении комментария');
+        }
+
+        const updatedArticle = await response.json();
+        currentArticle = updatedArticle;
+        loadComments(updatedArticle);
+        resetCommentForm();
+        
+        showMessage('Комментарий успешно обновлен', 'success');
+    }
+
+    async function deleteComment(commentId) {
+        if (!confirm('Вы уверены, что хотите удалить этот комментарий?')) {
+            return;
+        }
+
+        const commentData = {
+            id: commentId,
+            articleId: parseInt(articleId)
+        };
+
+        const response = await fetch('/api/v1/articles/comment', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(commentData)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Ошибка при удалении комментария');
+        }
+
+        const updatedArticle = await response.json();
+        currentArticle = updatedArticle;
+        loadComments(updatedArticle);
+        
+        showMessage('Комментарий успешно удален', 'success');
+    }
+
+    function editComment(commentId, content) {
+        isEditingComment = true;
+        currentEditingCommentId = commentId;
+        
+        document.getElementById('comment-id').value = commentId;
+        document.getElementById('comment-content').value = content;
+        document.getElementById('comment-submit-btn').textContent = 'Обновить комментарий';
+        document.getElementById('comment-cancel-btn').style.display = 'block';
+        
+        // Прокручиваем к форме
+        document.getElementById('comment-form-container').scrollIntoView({ behavior: 'smooth' });
+        
+        // Фокусируемся на текстовом поле
+        document.getElementById('comment-content').focus();
+    }
+
+    function resetCommentForm() {
+        isEditingComment = false;
+        currentEditingCommentId = null;
+        
+        document.getElementById('comment-form').reset();
+        document.getElementById('comment-id').value = '';
+        document.getElementById('comment-submit-btn').textContent = 'Отправить комментарий';
+        document.getElementById('comment-cancel-btn').style.display = 'none';
+    }
+
+    function showMessage(message, type) {
+        const messageContainer = document.getElementById('message-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        messageContainer.appendChild(alertDiv);
+        
+        // Автоматически скрываем через 4 секунды
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 4000);
     }
 
     async function logout() {
@@ -122,8 +390,16 @@
         window.location.href = "/blog.html";
     }
 
+    // Инициализация
     updateAuthUI();
     if (articleId) loadArticle();
+
+    // Обработка нажатия Enter в поле комментария (отправка формы)
+    document.getElementById('comment-content').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            document.getElementById('comment-form').dispatchEvent(new Event('submit'));
+        }
+    });
 </script>
 </body>
 </html>

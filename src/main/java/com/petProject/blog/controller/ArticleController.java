@@ -3,7 +3,9 @@ package com.petProject.blog.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.petProject.blog.api.ArticleResponse;
+import com.petProject.blog.api.CommentTemplate;
 import com.petProject.blog.api.CreateArticleRequest;
 import com.petProject.blog.api.SearchRequest;
 import com.petProject.blog.service.ArticleService;
@@ -46,5 +49,20 @@ public class ArticleController {
     @PostMapping(value="/search")
     public ResponseEntity<List<ArticleResponse>> search(@RequestBody SearchRequest request) {
         return ResponseEntity.ok(articleService.search(request.getQuery()));
+    }
+
+    @PostMapping(value="/comment")
+    public void createComment(@RequestBody CommentTemplate comment) {
+        articleService.createComment(comment);
+    }
+
+    @PatchMapping(value="/comment")
+    public ResponseEntity<ArticleResponse> updateComment(@RequestBody CommentTemplate comment) {
+        return ResponseEntity.ok(articleService.updateComment(comment));
+    }
+
+    @DeleteMapping(value="/comment")
+    public ResponseEntity<ArticleResponse> ddeleteComment(@RequestBody CommentTemplate comment) {
+        return ResponseEntity.ok(articleService.deleteComment(comment));
     }
 }

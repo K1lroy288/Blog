@@ -15,6 +15,8 @@
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 8px; }
         .loading-spinner { text-align: center; padding: 2rem; }
         .search-info { font-size: 0.9em; color: #6c757d; margin-bottom: 1rem; }
+        .comments-count { font-size: 0.85em; color: #6c757d; }
+        .comments-badge { background-color: #e9ecef; padding: 2px 6px; border-radius: 10px; font-size: 0.75em; }
     </style>
 </head>
 <body>
@@ -24,7 +26,7 @@
     <div class="container">
         <a class="navbar-brand" href="#" onclick="loadArticles()">Мой Блог</a>
         <div class="ms-auto">
-            <span id="user-panel">
+            <span id="user-panel" class="hidden">
                 <img src="" alt="Аватар" class="user-avatar" id="user-avatar">
                 Добро пожаловать, <strong id="username"></strong>
                 <button class="btn btn-info btn-sm ms-2" onclick="goToProfile()">Профиль</button>
@@ -146,9 +148,13 @@
                 const blob = await res.blob();
                 const avatarUrl = URL.createObjectURL(blob);
                 document.getElementById('user-avatar').src = avatarUrl;
+            } else {
+                // Установите дефолтный аватар если не загрузился
+                document.getElementById('user-avatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IiM2Yzc1N2QiLz4KPHBhdGggZD0iTTEyIDZDNTEyIDggMTAgMTAgMTAgMTJDMTAgMTQgMTEgMTYgMTIgMTZDMTMgMTYgMTQgMTQgMTQgMTJDMTQgMTAgMTIuNDg4IDggMTIgNloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
             }
         } catch (e) {
             console.error("Ошибка загрузки аватара:", e);
+            document.getElementById('user-avatar').src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IiM2Yzc1N2QiLz4KPHBhdGggZD0iTTEyIDZDNTEyIDggMTAgMTAgMTAgMTJDMTAgMTQgMTEgMTYgMTIgMTZDMTMgMTYgMTQgMTQgMTQgMTJDMTQgMTAgMTIuNDg4IDggMTIgNloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=';
         }
     }
 
@@ -230,7 +236,7 @@
     // === Загрузка всех статей ===
     async function loadArticles() {
         try {
-            showLoading(false);
+            showLoading(true); // Показываем спиннер ПЕРЕД загрузкой
             updateSearchUI('');
             
             const res = await fetch("/api/v1/articles");
@@ -243,7 +249,7 @@
             console.error("Ошибка загрузки статей:", e);
             showError("articles-list", "Не удалось загрузить статьи. Проверьте соединение.");
         } finally {
-            showLoading(false);
+            showLoading(false); // Скрываем спиннер ПОСЛЕ загрузки
         }
     }
 
@@ -277,7 +283,7 @@
         }
     }
 
-    // === Рендеринг статей ===
+    // === Рендеринг статей с комментариями ===
     function renderArticles(articles) {
         const container = document.getElementById("articles-list");
         const noResults = document.getElementById("no-results");
@@ -318,14 +324,25 @@
                 ? `<a href="/profile.html?username=${encodeURIComponent(art.authorUsername)}">${escapeHtml(art.authorName || art.authorUsername)}</a>`
                 : 'Аноним';
             
+            // Подсчет комментариев
+            const commentsCount = art.comments ? art.comments.length : 0;
+            const commentsText = getCommentsText(commentsCount);
+            
             div.innerHTML = `
                 <div class="card-body">
                     <h5 class="card-title">${titleHtml}</h5>
                     <p class="card-text">${contentHtml}${contentSuffix}</p>
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            👤 ${authorLink} | 📅 ${date}
-                        </small>
+                        <div>
+                            <small class="text-muted">
+                                👤 ${authorLink} | 📅 ${date}
+                            </small>
+                            ${commentsCount > 0 ? `
+                                <div class="comments-count mt-1">
+                                    <span class="comments-badge">💬 ${commentsCount} ${commentsText}</span>
+                                </div>
+                            ` : ''}
+                        </div>
                         <button class="btn btn-sm btn-outline-primary" onclick="viewArticle(${art.id})">
                             Читать далее →
                         </button>
@@ -336,20 +353,33 @@
         });
     }
 
+    // === Функция для правильного отображения текста комментариев ===
+    function getCommentsText(count) {
+        if (count === 0) return '';
+        if (count === 1) return 'комментарий';
+        if (count >= 2 && count <= 4) return 'комментария';
+        return 'комментариев';
+    }
+
     // === Вспомогательные функции ===
     function escapeHtml(unsafe) {
         if (!unsafe) return '';
         return unsafe
             .replace(/&/g, "&amp;")
-            .replace(/</g, "<")
-            .replace(/>/g, ">")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
 
-    function showError(elementId, message) {
+    function showError(elementId, message, hide = false) {
         const element = document.getElementById(elementId);
-        element.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+        if (hide) {
+            element.classList.add("hidden");
+        } else {
+            element.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+            element.classList.remove("hidden");
+        }
     }
 
     // === Остальные функции ===
@@ -405,7 +435,7 @@
         } catch (e) {
             console.warn("Ошибка при вызове logout:", e);
         } finally {
-            localStorage.clear(); // или по отдельности
+            localStorage.clear();
             window.location.href = "/login.html";
         }
     }
